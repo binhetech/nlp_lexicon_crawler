@@ -35,29 +35,32 @@ class XiaozhanCrawler(object):
         if lexicon in os.listdir(self.dictPath):
             return self.read_infos(lexicon)
         else:
-            url = self.url % ("toefl", lexicon)
-            html = etree.parse(url, etree.HTMLParser(encoding="utf-8"))
             if len(lexicon.split()) > 1:
                 lexiconType = "Phrase"
             else:
                 lexiconType = "Word"
             result = {"Lexicon": lexicon, "type": lexiconType, "source": self.source}
-            for k in self.items:
-                try:
-                    result[k] = eval("self.get_%s(html, lexicon)" % k)
-                except Exception as e:
-                    print("Error: {}, {}".format(lexicon, repr(e)))
-            # 保存词汇信息
-            if lexicon not in result["Inflections"].values():
-                isSave = False
+            try:
+                url = self.url % ("toefl", lexicon)
+                html = etree.parse(url, etree.HTMLParser(encoding="utf-8"))
                 for k in self.items:
-                    if k in result.keys() and result[k]:
-                        isSave = True
-                        break
-                if isSave:
-                    self.save_infos(lexicon, result)
-            else:
-                print("Warning: {} in Inflections: {}".format(lexicon, result["Inflections"]))
+                    try:
+                        result[k] = eval("self.get_%s(html, lexicon)" % k)
+                    except Exception as e:
+                        print("Error: {}, {}".format(lexicon, repr(e)))
+                # 保存词汇信息
+                if lexicon not in result["Inflections"].values():
+                    isSave = False
+                    for k in self.items:
+                        if k in result.keys() and result[k]:
+                            isSave = True
+                            break
+                    if isSave:
+                        self.save_infos(lexicon, result)
+                else:
+                    print("Warning: {} in Inflections: {}".format(lexicon, result["Inflections"]))
+            except Exception:
+                pass
             return result
 
     def get_phonetic_symbol(self, html):
@@ -235,6 +238,7 @@ class XiaozhanCrawler(object):
         """
         构词法提取.
         """
+        outs = []
         try:
             ens = html.xpath("//div[@class='cssVocWordPaneler jsVocWordPaneler']/span/text()")
             chs = html.xpath("//div[@class='cssVocWordDet jsVocWordDet']/div/span/text()")
@@ -243,10 +247,12 @@ class XiaozhanCrawler(object):
             out = {"formations": [], "paraphrase": expl, "source": self.source}
             for e, c in zip(ens, chs):
                 value = {"english": e, "chinese": c}
-                out["formations"].append(value)
-            name = " + ".join([i["english"] + "(" + i["chinese"] + ")" for i in out["formations"]]) + " = " + expl
-            out["name"] = name
-            outs = [out]
+                if e != "" and c != "":
+                    out["formations"].append(value)
+            if out["formations"]:
+                name = " + ".join([i["english"] + "(" + i["chinese"] + ")" for i in out["formations"]]) + " = " + expl
+                out["name"] = name
+                outs = [out]
         except Exception:
             outs = []
         return outs
@@ -366,10 +372,14 @@ if __name__ == "__main__":
 
     def crawler():
         from multiprocessing import Pool
-        words = open("../../高中英语/高中英语词汇-3826.txt", "r", encoding="utf-8").readlines()
+        with open("../../nlp_central_vocabulary/src/writer/en_tf-v1.0.json", "r", encoding="utf-8") as f:
+            tf_dicts = {i['word'].strip(): i['frequency'] for i in json.load(f) if i['word'].strip()}
+        words = list(tf_dicts.keys())
         print("{} words:".format(len(words)))
         p = Pool(8)
         for i in range(len(words)):
+            if i % 100 == 0:
+                print(i)
             p.apply_async(c.get_infos, (words[i].strip(),))
         p.close()
         p.join()
