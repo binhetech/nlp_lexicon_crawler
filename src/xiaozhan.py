@@ -21,10 +21,6 @@ class XiaozhanCrawler(object):
         self.source = "xiaozhan"
         self.url = "http://top.zhan.com/cihui/%s-%s.html"
         self.countryCh2En = {"美": "US", "英": "UK"}
-        self.inflectionCh2En = {"复数": "plural", "过去式": "past_tense", "过去分词": "past_participle",
-                                "现在分词": "present_participle", "第三人称单数": "third_person_singular",
-                                "形容词比较级": "comparative_adjective", "形容词最高级": "superlative_adjective",
-                                "副词比较级": "comparative_adverb", "副词最高级": "superlative_adverb"}
         self.items = ["PhoneticSymbols", "Paraphrases", "Inflections", "Collocations", "Derivatives", "WordFormations",
                       "RootAffixs", "SynonymAntonyms"]
         self.dictPath = "../dicts/xiaozhan/"
@@ -45,7 +41,7 @@ class XiaozhanCrawler(object):
                 lexiconType = "Phrase"
             else:
                 lexiconType = "Word"
-            result = {"Lexicon": lexicon, "type": lexiconType}
+            result = {"Lexicon": lexicon, "type": lexiconType, "source": self.source}
             for k in self.items:
                 try:
                     result[k] = eval("self.get_%s(html, lexicon)" % k)
@@ -244,7 +240,7 @@ class XiaozhanCrawler(object):
             chs = html.xpath("//div[@class='cssVocWordDet jsVocWordDet']/div/span/text()")
             assert len(ens) == len(chs)
             expl = html.xpath("string(//p[@class='cssVocWordInter colorBlue']/text())").strip()
-            out = {"formations": [], "paraphrase": expl}
+            out = {"formations": [], "paraphrase": expl, "source": self.source}
             for e, c in zip(ens, chs):
                 value = {"english": e, "chinese": c}
                 out["formations"].append(value)
@@ -316,7 +312,7 @@ class XiaozhanCrawler(object):
                                 value = Suffixs[e]
                             else:
                                 value = {"name": e, "type": "Root", "paraphrase": "", "origin": ""}
-
+                    value["source"] = self.source
                     outs.append(value)
         except Exception:
             pass
@@ -337,10 +333,12 @@ class XiaozhanCrawler(object):
                     pos = pp[0].strip() + "."
                     pp = pp[1].strip()
                     if tag == "同义词":
-                        value = {"type": "Synonym", "paraphrase": pp, "lexicon": lexicon, "pos": pos, "words": words}
+                        value = {"type": "Synonym", "paraphrase": pp, "lexicon": lexicon, "pos": pos, "words": words,
+                                 "source": self.source}
                         outs.append(value)
                     elif tag == "反义词":
-                        value = {"type": "Antonym", "paraphrase": pp, "lexicon": lexicon, "pos": pos, "words": words}
+                        value = {"type": "Antonym", "paraphrase": pp, "lexicon": lexicon, "pos": pos, "words": words,
+                                 "source": self.source}
                         outs.append(value)
         except Exception:
             pass
@@ -363,7 +361,7 @@ class XiaozhanCrawler(object):
 
 if __name__ == "__main__":
     c = XiaozhanCrawler()
-    c.get_infos("accessible")
+    c.get_infos("claim")
 
 
     def crawler():
